@@ -11,5 +11,12 @@
             <param name="loginViewModelInput">View model do login</param>
             <returns>Retorna ok, dados do usuario e o token em caso</returns>
         </member>
+        <member name="M:curso_api.Controllers.UsersController.Register(curso_api.Models.Users.RegisterViewModelInput)">
+            <summary>
+            Este serviço para registrar um novo usuário.
+            </summary>
+            <param name="registerViewModelInput">View model do login</param>
+            <returns>Retorna ok, dados do usuario e o token em caso</returns>
+        </member>
     </members>
 </doc>
