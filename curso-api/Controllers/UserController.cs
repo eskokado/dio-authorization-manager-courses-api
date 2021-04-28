@@ -2,13 +2,18 @@
 using curso_api.Models;
 using curso_api.Models.Users;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.IdentityModel.Tokens;
 using Swashbuckle.AspNetCore.Annotations;
+using System;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
 
 namespace curso_api.Controllers
 {
     [Route("api/v1/users")]
     [ApiController]
-    public class UsersController : ControllerBase
+    public class UserController : ControllerBase
     {
         /// <summary>
         /// Este serviço permite autenticar um usuário cadastrado e ativo.
@@ -23,7 +28,37 @@ namespace curso_api.Controllers
         [ValidationModelStateCustom]
         public IActionResult Login(LoginViewModelInput loginViewModelInput)
         {
-            return Ok(loginViewModelInput);
+
+            var userViewModelOutput = new UserViewModelOutput()
+            {
+                Code = 1,
+                Username = "eskokodo",
+                Email = "eskokado@email.com"
+            };
+
+
+            var secret = Encoding.ASCII.GetBytes("DigitalInnovationOneTakeBlipFullstack");
+            var symmetricSecurityKey = new SymmetricSecurityKey(secret);
+            var securityTokenDescriptor = new SecurityTokenDescriptor
+            {
+                Subject = new ClaimsIdentity(new Claim[]
+                {
+                    new Claim(ClaimTypes.NameIdentifier, userViewModelOutput.Code.ToString()),
+                    new Claim(ClaimTypes.Name, userViewModelOutput.Username.ToString()),
+                    new Claim(ClaimTypes.Email, userViewModelOutput.Email.ToString())
+                }),
+                Expires = DateTime.UtcNow.AddDays(1),
+                SigningCredentials = new SigningCredentials(symmetricSecurityKey, SecurityAlgorithms.HmacSha256Signature)
+            };
+            var jwtSecurityTokenHandler = new JwtSecurityTokenHandler();
+            var tokenGenerated = jwtSecurityTokenHandler.CreateToken(securityTokenDescriptor);
+            var token = jwtSecurityTokenHandler.WriteToken(tokenGenerated);
+
+            return Ok(new
+            {
+                Token = token,
+                User = userViewModelOutput
+            });
         }
 
         /// <summary>
