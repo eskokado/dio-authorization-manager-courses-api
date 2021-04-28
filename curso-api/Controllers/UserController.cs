@@ -1,11 +1,15 @@
-﻿using curso_api.Filters;
+﻿using curso_api.Businnes.Entities;
+using curso_api.Filters;
+using curso_api.InfraStructure.Data;
 using curso_api.Models;
 using curso_api.Models.Users;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Swashbuckle.AspNetCore.Annotations;
 using System;
 using System.IdentityModel.Tokens.Jwt;
+using System.Linq;
 using System.Security.Claims;
 using System.Text;
 
@@ -66,7 +70,7 @@ namespace curso_api.Controllers
         /// </summary>
         /// <param name="registerViewModelInput">View model do login</param>
         /// <returns>Retorna ok, dados do usuario e o token em caso</returns>
-        [SwaggerResponse(statusCode: 200, description: "Sucesso ao cadastrar", Type = typeof(RegisterViewModelInput))]
+        [SwaggerResponse(statusCode: 201, description: "Sucesso ao registrar", Type = typeof(RegisterViewModelInput))]
         [SwaggerResponse(statusCode: 400, description: "Campos obrigatórios", Type = typeof(FieldValidatesViewModelOutput))]
         [SwaggerResponse(statusCode: 500, description: "Erro interno", Type = typeof(ErrorGenericViewModel))]
         [HttpPost]
@@ -74,6 +78,24 @@ namespace curso_api.Controllers
         [ValidationModelStateCustom]
         public IActionResult Register(RegisterViewModelInput registerViewModelInput)
         {
+            var optionsBuilder = new DbContextOptionsBuilder<CourseDbContext>();
+            optionsBuilder.UseSqlServer(@"Data Source=(localdb)\mssqllocaldb;Initial Catalog=DB_COURSES;Persist Security Info=True;User ID=sa;Password=sa@123456");
+            CourseDbContext context = new CourseDbContext(optionsBuilder.Options);
+
+            var migrationsPendents = context.Database.GetAppliedMigrations();
+            if (migrationsPendents.Count() > 0)
+            {
+                context.Database.Migrate();
+            }
+
+            var user = new User();
+            user.Username = registerViewModelInput.Username;
+            user.Email = registerViewModelInput.Email;
+            user.Password = registerViewModelInput.Password;
+
+            context.Users.Add(user);
+            context.SaveChanges();
+
             return Created("", registerViewModelInput);
         }
     }
