@@ -1,4 +1,6 @@
-﻿using curso_api.Models.Courses;
+﻿using curso_api.Businnes.Entities;
+using curso_api.Businnes.Repositories;
+using curso_api.Models.Courses;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -16,13 +18,26 @@ namespace curso_api.Controllers
     [Authorize]
     public class CourseController : ControllerBase
     {
+        private readonly ICourseRepository _courseRepository;
+
+        public CourseController(ICourseRepository courseRepository)
+        {
+            _courseRepository = courseRepository;
+        }
+
         [SwaggerResponse(statusCode: 201, description: "Sucesso ao cadastrar um curso", Type = typeof(CourseViewModelInput))]
         [SwaggerResponse(statusCode: 401, description: "Não autorizado")]
         [HttpPost]
         [Route("")]
         public async Task<IActionResult> Post(CourseViewModelInput courseViewModelInput)
         {
+            Course course = new Course();
+            course.Name = courseViewModelInput.Name;
+            course.Description = courseViewModelInput.Description;
             var codeUser = int.Parse(User.FindFirst(c => c.Type == ClaimTypes.NameIdentifier)?.Value);
+            course.CodeUser = codeUser;
+            _courseRepository.Add(course);
+            _courseRepository.Commit();
             return Created("", courseViewModelInput);
         }
 
@@ -32,28 +47,16 @@ namespace curso_api.Controllers
         [Route("")]
         public async Task<IActionResult> Get()
         {
-            var cursos = new List<CourseViewModelOutput>();
+            var codeUser = int.Parse(User.FindFirst(c => c.Type == ClaimTypes.NameIdentifier)?.Value);
 
-            // var codeUser = int.Parse(User.FindFirst(c => c.Type == ClaimTypes.NameIdentifier)?.Value).ToString(),
-            cursos.Add(new CourseViewModelOutput()
-            {
-                Login = "",
-                Name = "Java",
-                Description = "Descrição do Curso Java"
-            });
-            cursos.Add(new CourseViewModelOutput()
-            {
-                Login = "",
-                Name = "CSharp",
-                Description = "Descrição do Curso CSharp"
-            });
-            cursos.Add(new CourseViewModelOutput()
-            {
-                Login = "",
-                Name = "Javascript",
-                Description = "Descrição do Curso Javascript"
-            });
-            return Ok(cursos);
+            var courses = _courseRepository.GetCoursesPerUser(codeUser)
+                .Select(s => new CourseViewModelOutput()
+                {
+                    Login = s.User.Username,
+                    Name = s.Name,
+                    Description = s.Description
+                });
+            return Ok(courses);
         }
     }
 

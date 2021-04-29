@@ -1,17 +1,11 @@
 ﻿using curso_api.Businnes.Entities;
+using curso_api.Businnes.Repositories;
+using curso_api.Configurations;
 using curso_api.Filters;
-using curso_api.InfraStructure.Data;
 using curso_api.Models;
 using curso_api.Models.Users;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
 using Swashbuckle.AspNetCore.Annotations;
-using System;
-using System.IdentityModel.Tokens.Jwt;
-using System.Linq;
-using System.Security.Claims;
-using System.Text;
 
 namespace curso_api.Controllers
 {
@@ -19,6 +13,20 @@ namespace curso_api.Controllers
     [ApiController]
     public class UserController : ControllerBase
     {
+        private readonly IUserRepository _userRepository;
+        private readonly IAuthenticationService _authenticationService;
+
+        public UserController(
+            IUserRepository userRepository, 
+            IAuthenticationService authenticationService)
+        {
+
+            _userRepository = userRepository;
+            _authenticationService = authenticationService;
+
+        }
+
+
         /// <summary>
         /// Este serviço permite autenticar um usuário cadastrado e ativo.
         /// </summary>
@@ -32,31 +40,21 @@ namespace curso_api.Controllers
         [ValidationModelStateCustom]
         public IActionResult Login(LoginViewModelInput loginViewModelInput)
         {
+            User user = _userRepository.GetUser(loginViewModelInput.Username);
+
+            if (user == null)
+            {
+                return BadRequest("Houve um erro ao tentar acessar.");
+            }
 
             var userViewModelOutput = new UserViewModelOutput()
             {
-                Code = 1,
-                Username = "eskokodo",
-                Email = "eskokado@email.com"
+                Code = user.Code,
+                Username = user.Username,
+                Email = user.Email
             };
-
-
-            var secret = Encoding.ASCII.GetBytes("DigitalInnovationOneTakeBlipFullstack");
-            var symmetricSecurityKey = new SymmetricSecurityKey(secret);
-            var securityTokenDescriptor = new SecurityTokenDescriptor
-            {
-                Subject = new ClaimsIdentity(new Claim[]
-                {
-                    new Claim(ClaimTypes.NameIdentifier, userViewModelOutput.Code.ToString()),
-                    new Claim(ClaimTypes.Name, userViewModelOutput.Username.ToString()),
-                    new Claim(ClaimTypes.Email, userViewModelOutput.Email.ToString())
-                }),
-                Expires = DateTime.UtcNow.AddDays(1),
-                SigningCredentials = new SigningCredentials(symmetricSecurityKey, SecurityAlgorithms.HmacSha256Signature)
-            };
-            var jwtSecurityTokenHandler = new JwtSecurityTokenHandler();
-            var tokenGenerated = jwtSecurityTokenHandler.CreateToken(securityTokenDescriptor);
-            var token = jwtSecurityTokenHandler.WriteToken(tokenGenerated);
+            
+            var token = _authenticationService.GenerateToken(userViewModelOutput);
 
             return Ok(new
             {
@@ -78,23 +76,20 @@ namespace curso_api.Controllers
         [ValidationModelStateCustom]
         public IActionResult Register(RegisterViewModelInput registerViewModelInput)
         {
-            var optionsBuilder = new DbContextOptionsBuilder<CourseDbContext>();
-            optionsBuilder.UseSqlServer(@"Data Source=(localdb)\mssqllocaldb;Initial Catalog=DB_COURSES;Persist Security Info=True;User ID=sa;Password=sa@123456");
-            CourseDbContext context = new CourseDbContext(optionsBuilder.Options);
 
-            var migrationsPendents = context.Database.GetAppliedMigrations();
-            if (migrationsPendents.Count() > 0)
-            {
-                context.Database.Migrate();
-            }
+            //var migrationsPendents = context.Database.GetAppliedMigrations();
+            //if (migrationsPendents.Count() > 0)
+            //{
+                //context.Database.Migrate();
+            //}
 
             var user = new User();
             user.Username = registerViewModelInput.Username;
             user.Email = registerViewModelInput.Email;
             user.Password = registerViewModelInput.Password;
 
-            context.Users.Add(user);
-            context.SaveChanges();
+            _userRepository.Add(user);
+            _userRepository.Commit();
 
             return Created("", registerViewModelInput);
         }

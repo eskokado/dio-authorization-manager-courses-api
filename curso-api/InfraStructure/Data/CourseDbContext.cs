@@ -23,6 +23,7 @@ namespace curso_api.InfraStructure.Data
         }
 
         public DbSet<User> Users { get; set; }
+        public DbSet<Course> Courses { get; set; }
         public DbContextOptions<CourseDbContext> Options { get; }
     }
 }
